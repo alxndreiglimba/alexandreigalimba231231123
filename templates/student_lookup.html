@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Student lookup · Event Attendance</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body class="auth-body">
+  <main class="auth-card wide">
+    <p class="eyebrow">Student</p>
+    <h1>Check your attendance</h1>
+    <p class="lede">Enter your student ID to see events, absences, and any sanction amount set by the owner.</p>
+    <form id="lookup-form">
+      <label>
+        Student ID
+        <input id="lookup-id" required placeholder="2024-001" />
+      </label>
+      <button type="submit">Look up</button>
+    </form>
+    <p id="lookup-error" class="banner error hidden"></p>
+    <div id="lookup-result" class="hidden"></div>
+    <p class="hint"><a href="{{ url_for('login') }}">Owner sign in</a></p>
+  </main>
+  <script>
+    const form = document.getElementById("lookup-form");
+    const errorEl = document.getElementById("lookup-error");
+    const resultEl = document.getElementById("lookup-result");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorEl.classList.add("hidden");
+      resultEl.classList.add("hidden");
+      const id = document.getElementById("lookup-id").value.trim();
+      const response = await fetch("/api/lookup/" + encodeURIComponent(id));
+      const data = await response.json();
+      if (!response.ok) {
+        errorEl.textContent = data.error || "Not found.";
+        errorEl.classList.remove("hidden");
+        return;
+      }
+      const rows = data.records.length
+        ? data.records.map((row) => {
+            const sanction = row.attendance_status === "absent"
+              ? (row.sanction_status === "paid"
+                ? "Sanction paid (" + Number(row.amount).toFixed(2) + ")"
+                : (row.amount > 0 ? "Pay " + Number(row.amount).toFixed(2) : "Amount not set yet"))
+              : "No sanction";
+            return `<li><strong>${row.title}</strong> · ${row.event_date}<br>${row.attendance_status} · ${sanction}</li>`;
+          }).join("")
+        : "<li>No attendance records yet.</li>";
+      resultEl.innerHTML = `<h2>${data.student.full_name}</h2><p class="lede">${data.student.student_id} · ${data.student.course || "No course listed"}</p><ul class="plain">${rows}</ul>`;
+      resultEl.classList.remove("hidden");
+    });
+  </script>
+</body>
+</html>

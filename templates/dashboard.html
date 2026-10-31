@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Owner console · Event Attendance</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Owner console</p>
+      <h1>Attendance &amp; sanctions</h1>
+    </div>
+    <div class="topbar-actions">
+      <span>Signed in as {{ username }}</span>
+      <a class="ghost" href="{{ url_for('student_lookup_page') }}">Student lookup</a>
+      <a class="ghost" href="{{ url_for('logout') }}">Sign out</a>
+    </div>
+  </header>
+
+  <section class="stats" id="stats"></section>
+
+  <nav class="tabs">
+    <button data-tab="events" class="active">Events</button>
+    <button data-tab="students">Students</button>
+    <button data-tab="sanctions">Sanctions</button>
+  </nav>
+
+  <section id="panel-events" class="panel">
+    <div class="split">
+      <form id="event-form" class="card">
+        <h2>Hold an event</h2>
+        <label>Title <input name="title" required placeholder="General assembly" /></label>
+        <label>Date <input name="event_date" type="date" required /></label>
+        <label>Location <input name="location" placeholder="Main hall" /></label>
+        <label>Notes <textarea name="notes" rows="3" placeholder="Optional details"></textarea></label>
+        <button type="submit">Save event</button>
+      </form>
+      <div class="card grow">
+        <h2>All events</h2>
+        <div id="event-list" class="list"></div>
+      </div>
+    </div>
+    <div id="attendance-box" class="card hidden">
+      <div class="row-between">
+        <h2 id="attendance-title">Attendance</h2>
+        <button type="button" class="ghost" id="close-attendance">Close</button>
+      </div>
+      <p class="lede" id="attendance-meta"></p>
+      <div id="attendance-list" class="list"></div>
+    </div>
+  </section>
+
+  <section id="panel-students" class="panel hidden">
+    <div class="split">
+      <form id="student-form" class="card">
+        <h2>Add student</h2>
+        <label>Student ID <input name="student_id" required placeholder="2024-001" /></label>
+        <label>Full name <input name="full_name" required placeholder="Ana Santos" /></label>
+        <label>Course / section <input name="course" placeholder="BSIT 2A" /></label>
+        <button type="submit">Save student</button>
+      </form>
+      <div class="card grow">
+        <h2>Roster</h2>
+        <div id="student-list" class="list"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-sanctions" class="panel hidden">
+    <div class="card">
+      <h2>Sanctions for absences</h2>
+      <p class="lede">If a student is absent, set how much they must pay. Mark paid when they settle it.</p>
+      <div id="sanction-list" class="list"></div>
+    </div>
+  </section>
+
+  <p id="toast" class="toast hidden"></p>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

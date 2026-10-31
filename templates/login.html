@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in · Event Attendance</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body class="auth-body">
+  <main class="auth-card">
+    <p class="eyebrow">Owner console</p>
+    <h1>Event attendance &amp; sanctions</h1>
+    <p class="lede">Sign in to create events, mark who showed up, and set how much an absent student must pay.</p>
+    {% if error %}
+      <p class="banner error">{{ error }}</p>
+    {% endif %}
+    <form method="post">
+      <label>
+        Username
+        <input type="text" name="username" value="owner" required autofocus />
+      </label>
+      <label>
+        Password
+        <input type="password" name="password" value="admin123" required />
+      </label>
+      <button type="submit">Enter console</button>
+    </form>
+    <p class="hint">Default login: <strong>owner</strong> / <strong>admin123</strong>. Change this in production.</p>
+    <p class="hint"><a href="{{ url_for('student_lookup_page') }}">Student lookup</a> — check attendance without signing in.</p>
+  </main>
+</body>
+</html>
