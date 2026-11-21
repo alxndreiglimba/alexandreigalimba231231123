@@ -14,21 +14,27 @@
     <form id="lookup-form">
       <label>
         Student ID
-        <input id="lookup-id" required placeholder="2024-001" />
+        <input id="lookup-id" value="{{ student_id }}" required placeholder="2024-001" {% if student_id %}readonly{% endif %} />
       </label>
       <button type="submit">Look up</button>
     </form>
     <p id="lookup-error" class="banner error hidden"></p>
     <div id="lookup-result" class="hidden"></div>
-    <p class="hint"><a href="{{ url_for('login') }}">Owner sign in</a></p>
+    <p class="hint">
+      {% if student_id %}
+        <a href="{{ url_for('logout') }}">Log out</a>
+      {% else %}
+        <a href="{{ url_for('login') }}">Log in</a>
+      {% endif %}
+    </p>
   </main>
   <script>
     const form = document.getElementById("lookup-form");
     const errorEl = document.getElementById("lookup-error");
     const resultEl = document.getElementById("lookup-result");
 
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
+    async function lookup(event) {
+      if (event) event.preventDefault();
       errorEl.classList.add("hidden");
       resultEl.classList.add("hidden");
       const id = document.getElementById("lookup-id").value.trim();
@@ -51,7 +57,10 @@
         : "<li>No attendance records yet.</li>";
       resultEl.innerHTML = `<h2>${data.student.full_name}</h2><p class="lede">${data.student.student_id} · ${data.student.course || "No course listed"}</p><ul class="plain">${rows}</ul>`;
       resultEl.classList.remove("hidden");
-    });
+    }
+
+    form.addEventListener("submit", lookup);
+    if (document.getElementById("lookup-id").value) lookup();
   </script>
 </body>
 </html>

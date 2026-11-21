@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Owner console · Event Attendance</title>
+  <title> · Event Attendance</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 </head>
 <body>
@@ -33,6 +33,9 @@
         <h2>Hold an event</h2>
         <label>Title <input name="title" required placeholder="General assembly" /></label>
         <label>Date <input name="event_date" type="date" required /></label>
+        <label>Attendance opens <input name="attendance_starts_at" type="datetime-local" required /></label>
+        <label>Attendance cutoff <input name="attendance_cutoff_at" type="datetime-local" required /></label>
+        <p class="hint">Use the server's local time. Students can check in using their student ID and full name during this window.</p>
         <label>Location <input name="location" placeholder="Main hall" /></label>
         <label>Notes <textarea name="notes" rows="3" placeholder="Optional details"></textarea></label>
         <button type="submit">Save event</button>
@@ -45,26 +48,45 @@
     <div id="attendance-box" class="card hidden">
       <div class="row-between">
         <h2 id="attendance-title">Attendance</h2>
-        <button type="button" class="ghost" id="close-attendance">Close</button>
+        <div class="actions">
+          <button type="button" class="ghost small" id="refresh-attendance">Refresh</button>
+          <button type="button" class="ghost small" id="close-attendance">Close</button>
+        </div>
       </div>
       <p class="lede" id="attendance-meta"></p>
+      <p class="meta" id="attendance-count"></p>
       <div id="attendance-list" class="list"></div>
     </div>
   </section>
 
   <section id="panel-students" class="panel hidden">
-    <div class="split">
-      <form id="student-form" class="card">
-        <h2>Add student</h2>
-        <label>Student ID <input name="student_id" required placeholder="2024-001" /></label>
-        <label>Full name <input name="full_name" required placeholder="Ana Santos" /></label>
-        <label>Course / section <input name="course" placeholder="BSIT 2A" /></label>
-        <button type="submit">Save student</button>
+    <div class="card">
+      <h2>Student roster</h2>
+      <p class="lede">Import a student roster or add students automatically when they check in. Imported students will appear in event attendance lists.</p>
+      <form id="student-import-form" class="actions">
+        <label>
+          Course for this student list
+          <select name="course" required>
+            <option value="">Choose a course</option>
+            <option value="BSIT">BSIT</option>
+            <option value="BSOA">BSOA</option>
+            <option value="CRIMINOLOGY">CRIMINOLOGY</option>
+          </select>
+        </label>
+        <label>
+          Excel workbook (.xlsx)
+          <input type="file" name="file" accept=".xlsx" required />
+        </label>
+        <button type="submit" class="import-button">Import student list</button>
       </form>
-      <div class="card grow">
-        <h2>Roster</h2>
-        <div id="student-list" class="list"></div>
-      </div>
+      <p class="hint">Use the first worksheet with <strong>Student ID</strong> and <strong>Full Name</strong> columns. The selected course is assigned to every student, replacing any Course column values. IDs with leading zeros should be stored as text in Excel.</p>
+      <label>Show students for
+        <select id="roster-event-select">
+          <option value="">All students</option>
+        </select>
+      </label>
+      <p class="meta" id="roster-event-meta"></p>
+      <div id="student-list" class="list"></div>
     </div>
   </section>
 

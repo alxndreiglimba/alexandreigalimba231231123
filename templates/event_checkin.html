@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Event check-in · Event Attendance</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body class="auth-body">
+  <main class="auth-card wide">
+    <p class="eyebrow">Student check-in</p>
+    <h1>{{ event.title }}</h1>
+    <p class="lede">{{ event.event_date }}{% if event.location %} · {{ event.location }}{% endif %}</p>
+    {% if event.attendance_starts_at and event.attendance_cutoff_at %}
+      <p class="meta">Check-in window: {{ event.attendance_starts_at.replace("T", " ") }} – {{ event.attendance_cutoff_at.replace("T", " ") }}</p>
+    {% else %}
+      <p class="banner error">Student check-in has not been scheduled for this event.</p>
+    {% endif %}
+    <p id="checkin-status" class="lede">{{ attendance_message }}</p>
+    <form id="checkin-form">
+      <label>Student ID <input name="student_id" required autocomplete="off" placeholder="2026-108447" /></label>
+      <label>Full name <input name="full_name" required autocomplete="name" placeholder="Alexandrei Galimba" /></label>
+      <button type="submit" {% if not event.attendance_starts_at or not event.attendance_cutoff_at %}disabled{% endif %}>Check in</button>
+    </form>
+  </main>
+  <script>
+    const form = document.getElementById("checkin-form");
+    const statusEl = document.getElementById("checkin-status");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      statusEl.textContent = "Checking you in…";
+      statusEl.className = "lede";
+      const payload = Object.fromEntries(new FormData(form));
+      try {
+        const response = await fetch("/api/events/{{ event.id }}/check-in", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Unable to check in.");
+        }
+        statusEl.textContent = `You are checked in, ${data.full_name}.`;
+        statusEl.className = "banner success";
+        form.reset();
+      } catch (error) {
+        statusEl.textContent = error.message || "Unable to check in. Please try again.";
+        statusEl.className = "banner error";
+      }
+    });
+  </script>
+</body>
+</html>

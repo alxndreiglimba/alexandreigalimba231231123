@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Student look-up · Event Attendance</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body class="auth-body">
+  <main class="auth-card wide">
+    <p class="eyebrow">Event student look-up</p>
+    <h1>{{ event.title }}</h1>
+    <p class="lede">{{ event.event_date }}{% if event.location %} · {{ event.location }}{% endif %}</p>
+    <p class="lede">Search the student roster by student ID or exact first name to see attendance for this event.</p>
+    <form id="student-lookup-form">
+      <label>Student ID or first name
+        <input name="query" required maxlength="100" autocomplete="off" placeholder="2026-108447 or Alexandrei" />
+      </label>
+      <button type="submit">Look up</button>
+    </form>
+    <p id="lookup-message" class="hidden" aria-live="polite"></p>
+    <div id="lookup-results" class="list"></div>
+    <p class="hint"><a href="{{ url_for('event_check_in_page', event_id=event.id) }}">Go to event check-in</a></p>
+  </main>
+  <script>
+    const form = document.getElementById("student-lookup-form");
+    const message = document.getElementById("lookup-message");
+    const results = document.getElementById("lookup-results");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      message.className = "lede";
+      message.textContent = "Searching the student roster…";
+      results.replaceChildren();
+
+      const query = new FormData(form).get("query").trim();
+      try {
+        const response = await fetch(
+          "/api/events/{{ event.id }}/student-lookup?q=" + encodeURIComponent(query)
+        );
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Unable to find that student.");
+        }
+
+        message.textContent = data.students.length > 1
+          ? `${data.students.length} students matched.`
+          : "Student found.";
+        data.students.forEach((student) => {
+          const item = document.createElement("article");
+          item.className = "item";
+          const name = document.createElement("h3");
+          name.textContent = student.full_name;
+          const details = document.createElement("p");
+          details.className = "meta";
+          details.textContent = `${student.student_id} · ${student.attendance_status || "Not recorded"}${student.marked_at ? ` · Recorded ${student.marked_at}` : ""}`;
+          item.append(name, details);
+          results.append(item);
+        });
+      } catch (error) {
+        message.className = "banner error";
+        message.textContent = error.message || "Unable to find that student.";
+      }
+    });
+  </script>
+</body>
+</html>
