@@ -10,7 +10,7 @@
   <main class="auth-card">
     <p class="eyebrow">New account</p>
     <h1>Create account</h1>
-    <p class="lede">Choose an account type to get started.</p>
+    <p class="lede">{% if allow_admin_registration %}Choose an account type to get started.{% else %}Create a student account.{% endif %}</p>
     {% if error %}
       <p class="banner error">{{ error }}</p>
     {% endif %}
@@ -18,16 +18,18 @@
       <label>
         Account type
         <select id="role" name="role" required>
-          <option value="admin">Admin</option>
+          {% if allow_admin_registration %}<option value="admin">Admin</option>{% endif %}
           <option value="student">Student</option>
         </select>
       </label>
+      {% if allow_admin_registration %}
       <div id="admin-fields">
         <label>
           Username
           <input type="text" name="username" autocomplete="username" />
         </label>
       </div>
+      {% endif %}
       <div id="student-fields" class="hidden">
         <label>
           Student ID
@@ -52,16 +54,18 @@
   </main>
   <script>
     const roleSelect = document.getElementById("role");
-    const adminFields = document.getElementById("admin-fields");
     const studentFields = document.getElementById("student-fields");
-    const adminUsername = adminFields.querySelector("input");
     const studentInputs = studentFields.querySelectorAll("input");
+    const adminFields = document.getElementById("admin-fields");
+    const adminUsername = adminFields ? adminFields.querySelector("input") : null;
 
     function updateAccountFields() {
-      const isStudent = roleSelect.value === "student";
-      adminFields.classList.toggle("hidden", isStudent);
+      const isStudent = !adminFields || roleSelect.value === "student";
+      if (adminFields) {
+        adminFields.classList.toggle("hidden", isStudent);
+        adminUsername.required = !isStudent;
+      }
       studentFields.classList.toggle("hidden", !isStudent);
-      adminUsername.required = !isStudent;
       studentInputs[0].required = isStudent;
       studentInputs[1].required = isStudent;
     }
