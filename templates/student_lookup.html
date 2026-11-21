@@ -10,21 +10,21 @@
   <main class="auth-card wide">
     <p class="eyebrow">Student</p>
     <h1>Check your attendance</h1>
-    <p class="lede">{% if is_student %}Your attendance, absences, and any sanction amount set by the owner.{% else %}Search a student's attendance, absences, and sanction amounts.{% endif %}</p>
+    <p class="lede">Enter your student ID to see events, absences, and any sanction amount set by the owner.</p>
     <form id="lookup-form">
       <label>
         Student ID
-        <input id="lookup-id" value="{{ student_id }}" required placeholder="2024-001" {% if is_student %}readonly{% endif %} />
+        <input id="lookup-id" value="{{ student_id }}" required placeholder="2024-001" {% if student_id %}readonly{% endif %} />
       </label>
       <button type="submit">Look up</button>
     </form>
     <p id="lookup-error" class="banner error hidden"></p>
     <div id="lookup-result" class="hidden"></div>
     <p class="hint">
-      {% if is_student %}
+      {% if student_id %}
         <a href="{{ url_for('logout') }}">Log out</a>
       {% else %}
-        <a href="{{ url_for('dashboard') }}">Back to dashboard</a>
+        <a href="{{ url_for('login') }}">Log in</a>
       {% endif %}
     </p>
   </main>

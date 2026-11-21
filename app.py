@@ -1,6 +1,5 @@
 from datetime import datetime
 from functools import wraps
-import os
 from pathlib import Path
 import re
 from zipfile import BadZipFile
@@ -14,41 +13,23 @@ from flask import Flask, g, jsonify, redirect, render_template, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 APP_DIR = Path(__file__).resolve().parent
-IS_PRODUCTION = os.environ.get("APP_ENV", "development").lower() == "production"
-OWNER_USERNAME = os.environ.get("OWNER_USERNAME", "")
-OWNER_PASSWORD = os.environ.get("OWNER_PASSWORD", "")
-SECRET_KEY = os.environ.get("SECRET_KEY")
-
-if IS_PRODUCTION:
-    if not SECRET_KEY:
-        raise RuntimeError("SECRET_KEY must be configured in production.")
-    if not OWNER_USERNAME or len(OWNER_PASSWORD) < 12:
-        raise RuntimeError("Set OWNER_USERNAME and an OWNER_PASSWORD of at least 12 characters in production.")
+DEFAULT_OWNER_USERNAME = "alexandrei"
+DEFAULT_OWNER_PASSWORD = "galimba@123"
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = SECRET_KEY or "local-development-only-secret-key"
+app.config["SECRET_KEY"] = "change-this-secret-key-before-sharing-publicly"
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
-app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.config["SESSION_COOKIE_SECURE"] = IS_PRODUCTION
-app.config["ALLOW_ADMIN_REGISTRATION"] = (
-    not IS_PRODUCTION
-    or os.environ.get("ALLOW_ADMIN_REGISTRATION", "").lower() == "true"
-)
 
-DB_HOST = os.environ.get("MYSQLHOST", os.environ.get("DB_HOST", "127.0.0.1"))
-DB_USER = os.environ.get("MYSQLUSER", os.environ.get("DB_USER", "root"))
-DB_PASSWORD = os.environ.get("MYSQLPASSWORD", os.environ.get("DB_PASSWORD", ""))
-DB_NAME = os.environ.get("MYSQLDATABASE", os.environ.get("DB_NAME", "ssg_db"))
-DB_PORT = int(os.environ.get("MYSQLPORT", os.environ.get("DB_PORT", "3306")))
-DB_CREATE_DATABASE = os.environ.get("DB_CREATE_DATABASE", "true").lower() == "true"
+# MySQL Database Configuration for Laragon
+DB_HOST = "127.0.0.1"
+DB_USER = "root"
+DB_PASSWORD = "1234"
+DB_NAME = "ssg_db"
 
 def init_database():
-    """Create the local database when configured to do so."""
-    if not DB_CREATE_DATABASE:
-        return
+    """ Automatically creates the ssg_db database if it doesn't exist """
     try:
-        conn = mysql.connector.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD, port=DB_PORT)
+        conn = mysql.connector.connect(host=DB_HOST, user=DB_USER, password=DB_PASSWORD)
         cursor = conn.cursor()
         cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_NAME}")
         cursor.close()
@@ -65,8 +46,7 @@ def get_db():
             host=DB_HOST,
             user=DB_USER,
             password=DB_PASSWORD,
-            database=DB_NAME,
-            port=DB_PORT,
+            database=DB_NAME
         )
         g.cursor = g.db.cursor(dictionary=True)
     return g.db, g.cursor
@@ -164,19 +144,18 @@ def init_db():
     if not cursor.fetchone():
         cursor.execute("ALTER TABLE events ADD COLUMN attendance_cutoff_at VARCHAR(255)")
 
-    # Provision the configured owner account on a fresh database.
-    if OWNER_USERNAME and OWNER_PASSWORD:
-        cursor.execute("SELECT id FROM users WHERE username = %s", (OWNER_USERNAME,))
-    if OWNER_USERNAME and OWNER_PASSWORD and cursor.fetchone() is None:
+    # Ensure default admin account exists in users table
+    cursor.execute("SELECT id FROM users WHERE username = %s", (DEFAULT_OWNER_USERNAME,))
+    if cursor.fetchone() is None:
         cursor.execute(
             """
             INSERT INTO users (username, full_name, password_hash, role, created_at) 
             VALUES (%s, %s, %s, 'admin', %s)
             """,
             (
-                OWNER_USERNAME,
+                DEFAULT_OWNER_USERNAME,
                 "System Administrator",
-                generate_password_hash(OWNER_PASSWORD),
+                generate_password_hash(DEFAULT_OWNER_PASSWORD),
                 now_iso(),
             ),
         )
@@ -187,18 +166,6 @@ def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
         if session.get("role") != "admin":
-            if request.path.startswith("/api/"):
-                return jsonify({"error": "Login required"}), 401
-            return redirect(url_for("login"))
-        return view(*args, **kwargs)
-
-    return wrapped
-
-
-def lookup_login_required(view):
-    @wraps(view)
-    def wrapped(*args, **kwargs):
-        if session.get("role") not in ("admin", "student"):
             if request.path.startswith("/api/"):
                 return jsonify({"error": "Login required"}), 401
             return redirect(url_for("login"))
@@ -356,8 +323,6 @@ def register():
             error = "Password must be at least 8 characters."
         elif role not in ("admin", "student"):
             error = "Choose whether this account is for an admin or student."
-        elif role == "admin" and not app.config["ALLOW_ADMIN_REGISTRATION"]:
-            error = "Admin accounts are created by the system owner."
         else:
             username = request.form.get("username" if role == "admin" else "student_id", "").strip()
             full_name = request.form.get("full_name", "").strip() if role == "student" else "Administrator"
@@ -396,11 +361,7 @@ def register():
                         db.rollback()
                         error = "An error occurred while creating the account."
 
-    return render_template(
-        "register.html",
-        error=error,
-        allow_admin_registration=app.config["ALLOW_ADMIN_REGISTRATION"],
-    )
+    return render_template("register.html", error=error)
 
 
 @app.route("/logout")
@@ -416,11 +377,20 @@ def dashboard():
 
 
 @app.route("/student-lookup")
-@lookup_login_required
 def student_lookup_page():
-    is_student = session.get("role") == "student"
-    student_id = session.get("username", "") if is_student else request.args.get("student_id", "").strip()
-    return render_template("student_lookup.html", student_id=student_id, is_student=is_student)
+    student_id = request.args.get("student_id", "").strip()
+    db, cursor = get_db()
+    if session.get("role") == "student":
+        cursor.execute(
+            "SELECT username FROM users WHERE id = %s",
+            (session["user_id"],),
+        )
+        user = cursor.fetchone()
+        if user is None:
+            session.clear()
+            return redirect(url_for("login"))
+        student_id = user["username"]
+    return render_template("student_lookup.html", student_id=student_id)
 
 
 @app.get("/api/accounts")
@@ -665,7 +635,6 @@ def event_check_in_page(event_id):
 
 
 @app.get("/events/<int:event_id>/student-lookup")
-@lookup_login_required
 def event_student_lookup_page(event_id):
     db, cursor = get_db()
     cursor.execute(
@@ -675,24 +644,11 @@ def event_student_lookup_page(event_id):
     event = cursor.fetchone()
     if event is None:
         return "Event not found.", 404
-    return render_template(
-        "event_student_lookup.html",
-        event=dict(event),
-        is_student=session.get("role") == "student",
-        student_id=session.get("username", ""),
-    )
+    return render_template("event_student_lookup.html", event=dict(event))
 
 
 @app.get("/api/events/<int:event_id>/student-lookup")
-@lookup_login_required
 def event_student_lookup(event_id):
-    is_student = session.get("role") == "student"
-    query = request.args.get("q", "").strip()
-    if not query or len(query) > 100:
-        return jsonify({"error": "Enter a student ID or first name (up to 100 characters)."}), 400
-    if is_student and query != session.get("username"):
-        return jsonify({"error": "You can only look up your own attendance."}), 403
-
     db, cursor = get_db()
     cursor.execute(
         "SELECT id FROM events WHERE id = %s", (event_id,)
@@ -701,30 +657,22 @@ def event_student_lookup(event_id):
     if event is None:
         return jsonify({"error": "Event not found."}), 404
 
-    if is_student:
-        cursor.execute(
-            """
-            SELECT s.student_id, s.full_name,
-                   a.status AS attendance_status, a.marked_at
-            FROM students s
-            LEFT JOIN attendance a ON a.student_id = s.id AND a.event_id = %s
-            WHERE s.student_id = %s
-            """,
-            (event_id, session["username"]),
-        )
-    else:
-        cursor.execute(
-            """
-            SELECT s.student_id, s.full_name,
-                   a.status AS attendance_status, a.marked_at
-            FROM students s
-            LEFT JOIN attendance a ON a.student_id = s.id AND a.event_id = %s
-            WHERE s.student_id = %s
-               OR LOWER(SUBSTRING_INDEX(s.full_name, ' ', 1)) = LOWER(%s)
-            ORDER BY s.full_name ASC
-            """,
-            (event_id, query, query),
-        )
+    query = request.args.get("q", "").strip()
+    if not query or len(query) > 100:
+        return jsonify({"error": "Enter a student ID or first name (up to 100 characters)."}), 400
+
+    cursor.execute(
+        """
+        SELECT s.student_id, s.full_name,
+               a.status AS attendance_status, a.marked_at
+        FROM students s
+        LEFT JOIN attendance a ON a.student_id = s.id AND a.event_id = %s
+        WHERE s.student_id = %s
+           OR LOWER(SUBSTRING_INDEX(s.full_name, ' ', 1)) = LOWER(%s)
+        ORDER BY s.full_name ASC
+        """,
+        (event_id, query, query),
+    )
     rows = cursor.fetchall()
     if not rows:
         return jsonify({"error": "No roster student matched that student ID or first name."}), 404
@@ -972,10 +920,7 @@ def update_sanction(sanction_id):
 
 
 @app.get("/api/lookup/<student_id>")
-@lookup_login_required
 def public_lookup(student_id):
-    if session.get("role") == "student" and student_id != session.get("username"):
-        return jsonify({"error": "You can only look up your own attendance."}), 403
     db, cursor = get_db()
     cursor.execute(
         "SELECT id, student_id, full_name, course FROM students WHERE student_id = %s",
@@ -1001,8 +946,4 @@ def public_lookup(student_id):
 
 
 if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", "5000")),
-        debug=not IS_PRODUCTION,
-    )
+    app.run(host="0.0.0.0", port=5000, debug=True)

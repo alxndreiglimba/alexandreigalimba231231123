@@ -13,42 +13,25 @@ A small local web app for holding school events, marking student attendance, and
 - In the Student roster, select BSIT, BSOA, or CRIMINOLOGY before uploading an `.xlsx` workbook to add or update students in bulk. The first worksheet must have `Student ID` and `Full Name` columns. The selected course is assigned to every student, overriding any course values in the workbook. Store student IDs as text if they contain leading zeros.
 - On an event, mark each student **present** or **absent**.
 - An absence creates a **sanction**. The owner decides how much the student must pay, can add a note, and mark it **paid** when settled.
-- Students must sign in with their student ID to view their own record at `/student-lookup`; admins can search all students.
+- Students can check their own record at `/student-lookup` with their student ID (no login).
 
 ## Run it
-
-Install Python 3.10 or later and start Laragon's MySQL service. In PowerShell, from the project folder:
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-$env:DB_PASSWORD = "your local MySQL password"
 python app.py
 ```
 
 Open [http://127.0.0.1:5000](http://127.0.0.1:5000)
 
-On a fresh local database, create an admin account from the registration page. Existing databases retain their current accounts.
+Default owner login for a fresh database:
 
-## Deploy publicly with Railway
+- Username: `alexandrei`
+- Password: `galimba@123`
 
-GitHub stores the source code; it does not run this Flask application. To make the site available on the internet:
-
-1. Create a Railway project and deploy this GitHub repository as a web service.
-2. Add a MySQL service to the same Railway project.
-3. In the web service's Variables, configure:
-   - `APP_ENV` = `production`
-   - `DB_CREATE_DATABASE` = `false`
-   - `MYSQLHOST`, `MYSQLPORT`, `MYSQLUSER`, `MYSQLPASSWORD`, and `MYSQLDATABASE` using the connection values from the Railway MySQL service.
-   - `SECRET_KEY` = a new, long random value.
-   - `OWNER_USERNAME` and `OWNER_PASSWORD` = the first admin login. Use a unique password with at least 12 characters.
-4. Set the web service start command to `gunicorn --bind 0.0.0.0:$PORT app:app` if Railway does not detect the included `Procfile`.
-5. In Railway's web service Networking settings, generate a public domain. Share that HTTPS address.
-
-Never put production passwords in GitHub or commit them in source files. Values previously committed remain visible in Git history, so rotate any real credentials that were in the repository. The public deployment starts with a new, empty database; local records are not copied automatically.
-
-Student lookup requires sign-in. Students can only view their own records; admins can search all students.
+Change the default owner credentials and `SECRET_KEY` in `app.py` before putting this on a public server.
 
 ## Files
 
